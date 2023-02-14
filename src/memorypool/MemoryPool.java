@@ -1,6 +1,9 @@
 package memorypool;
 
+import main.Main;
+
 import java.util.ArrayList;
+import java.util.logging.Logger;
 
 public class MemoryPool {
     // Size of Memory
@@ -29,17 +32,28 @@ public class MemoryPool {
     // Current block that is being filled. Once this block is filled, it will pushed into the blkLis and will be reset
     private Block blk;
 
+    static Logger logger = Logger.getLogger(Main .class.getName());
+
+    /**
+     * initializes storing of database
+     * @param poolSize
+     * @param blkSize
+     */
     public MemoryPool(int poolSize, int blkSize) {
         this.poolSize = poolSize;
         this.blkSize = blkSize;
         this.numAllocatedBlk = 0;
-        this.numRemainingBlk = poolSize/blkSize;
-        this.recordSize = (Float.SIZE / 8) + (Integer.SIZE / 8) + 9;
-        this.recordsPerBlk = (int) Math.floor(blkSize/((Float.SIZE / 8) + (Integer.SIZE / 8) + 9));
+        this.numRemainingBlk = (int) Math.floor(poolSize/blkSize);
+        this.recordSize = 4 + 4 + 9;
+        this.recordsPerBlk = (int) Math.floor(blkSize/(4 + 4 + 9));
         this.blk = new Block();
         this.blkList = new ArrayList<Block>();
     }
 
+    /**
+     * allocates a block for new record when previous block is full
+     * @return boolean denoting whether allocation was successful
+     */
     public boolean allocateBlock() {
         if (numRemainingBlk < 0) {
             System.out.println("MEMORY FULL");
@@ -53,6 +67,10 @@ public class MemoryPool {
         return true;
     }
 
+    /**
+     *
+     * @param rec
+     */
     public void writeRecord(Record rec) {
         if (numRemainingBlk < 0) {
             System.out.println("No more space available!");
@@ -88,5 +106,18 @@ public class MemoryPool {
             deletedRecords = 0;
         }
         return true;
+    }
+
+    public void printStats() {
+        int currBlkSize = blk.getRecords().size();
+        if (currBlkSize > 0) {
+            totalNumRecords += currBlkSize;
+            numAllocatedBlk++;
+            numRemainingBlk--;
+        }
+        logger.info("Number of records: " + totalNumRecords);
+        logger.info("Size of a record: " + recordSize);
+        logger.info("Number of records per block: " + recordsPerBlk);
+        logger.info("Number of blocks: " + numAllocatedBlk);
     }
 }

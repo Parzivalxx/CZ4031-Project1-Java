@@ -7,6 +7,8 @@ import java.util.Scanner;
 import java.util.logging.Logger;
 import java.util.logging.FileHandler;
 import java.util.logging.SimpleFormatter;
+import memorypool.Record;
+import memorypool.MemoryPool;
 
 public class Main {
     public static void main(String[] args) {
@@ -33,20 +35,68 @@ public class Main {
             e.printStackTrace();
         }
 
+        MemoryPool db = new MemoryPool(500000000, BLOCKSIZE);
+
         File inputFile = new File(localDir + "/data/data.tsv");
         try {
-            Scanner scanner = new Scanner(inputFile);
-            scanner.nextLine();
+            Scanner sc = new Scanner(inputFile);
+            sc.nextLine();
             int numRecords = 0;
-            while (scanner.hasNextLine()) {
-                if (numRecords == 5) break;
-                String line = scanner.nextLine();
-                logger.info(line);
+            while(sc.hasNextLine()) {
                 numRecords++;
+                if (numRecords % 200000 == 0) {
+                    logger.info("Read " + numRecords + " lines...");
+                }
+                String newLine = sc.nextLine();
+                String[] record = newLine.split("\t");
+
+                Record rec = new Record(record[0], Float.parseFloat(String.valueOf(record[1])), Integer.parseInt(String.valueOf(record[2])));
+                db.writeRecord(rec);
+
             }
-            scanner.close();
+            sc.close();
+            boolean exit = false;
+            while (!exit) {
+                System.out.println("\nRun experiment:");
+                System.out.println("1: Experiment 1");
+                System.out.println("2: Experiment 2");
+                System.out.println("3: Experiment 3");
+                System.out.println("4: Experiment 4");
+                System.out.println("5: Experiment 5");
+                System.out.println("6: Quit");
+
+                Scanner sc2 = new Scanner(System.in);
+                int choice = sc2.nextInt();
+                switch (choice) {
+                    case 1:
+                        logger.info("\nStarting experiment 1...");
+                        db.printStats();
+                        break;
+                    case 2:
+                        logger.info("Starting experiment 2...");
+
+                        break;
+                    case 3:
+                        break;
+                    case 4:
+                        break;
+                    case 5:
+                        break;
+                    case 6:
+                        logger.info("Quitting...");
+                        exit = true;
+                        sc2.close();
+                        break;
+                    default:
+                        logger.warning("Invalid input, please try again");
+                }
+            }
         } catch (FileNotFoundException e) {
             System.err.println("File not found: " + inputFile.toString());
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+
+
     }
 }

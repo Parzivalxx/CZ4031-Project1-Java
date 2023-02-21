@@ -32,7 +32,7 @@ public class MemoryPool {
     // Current block that is being filled. Once this block is filled, it will pushed into the blkLis and will be reset
     private Block blk;
 
-    static Logger logger = Logger.getLogger(Main .class.getName());
+    static Logger logger = Logger.getLogger(Main.class.getName());
 
     /**
      * initializes storing of database

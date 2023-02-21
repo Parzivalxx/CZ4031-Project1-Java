@@ -9,9 +9,12 @@ import java.util.logging.FileHandler;
 import java.util.logging.SimpleFormatter;
 import memorypool.Record;
 import memorypool.MemoryPool;
+import memorypool.RecordBlock;
+import bptree.BPTree;
 
 public class Main {
     public static void main(String[] args) {
+        // we assume node size is same as block size
         final int BLOCKSIZE = 200;
         Logger logger = Logger.getLogger(Main.class.getName());
         FileHandler fh;
@@ -36,12 +39,15 @@ public class Main {
         }
 
         MemoryPool db = new MemoryPool(500000000, BLOCKSIZE);
+        BPTree tree = new BPTree(200 / 8);
 
         File inputFile = new File(localDir + "/data/data.tsv");
         try {
             Scanner sc = new Scanner(inputFile);
             sc.nextLine();
             int numRecords = 0;
+
+
             while(sc.hasNextLine()) {
                 numRecords++;
                 if (numRecords % 200000 == 0) {
@@ -52,7 +58,9 @@ public class Main {
 
                 Record rec = new Record(record[0], Float.parseFloat(String.valueOf(record[1])), Integer.parseInt(String.valueOf(record[2])));
                 db.writeRecord(rec);
-
+                RecordBlock rb = new RecordBlock(rec, db.getBlock());
+                int key = rec.getNumVotes();
+                tree.insertKey(key, rb);
             }
             sc.close();
             boolean exit = false;
@@ -74,7 +82,7 @@ public class Main {
                         break;
                     case 2:
                         logger.info("Starting experiment 2...");
-
+                        tree.printExperiment2();
                         break;
                     case 3:
                         break;

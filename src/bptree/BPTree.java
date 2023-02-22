@@ -6,12 +6,17 @@ import memorypool.RecordBlock;
 import java.sql.Array;
 import java.util.logging.Logger;
 import java.util.ArrayList;
+
 public class BPTree {
     private Node root;
     private int capacity;
     private int numNodes;
     private int numLevels;
-    private int numAccessedNodes;
+    private int numNodesAccessed;
+    private int minNonLeafKeys;
+    private int minNonLeafChildren;
+    private int minLeafKeys;
+    private int minLeafChildren;
     static Logger logger = Logger.getLogger(Main.class.getName());
 
     public BPTree(int capacity) {
@@ -19,7 +24,27 @@ public class BPTree {
         this.capacity = capacity;
         this.numNodes = 0;
         this.numLevels = 0;
-        this.numAccessedNodes = 0;
+        this.numNodesAccessed = 0;
+        this.minNonLeafKeys = (int)Math.floor(capacity / 2);
+        this.minNonLeafChildren = (int)Math.floor(capacity / 2) + 1;
+        this.minLeafKeys = (int)Math.floor((capacity + 1) / 2);
+        this.minLeafChildren = (int)Math.floor((capacity + 1) / 2);
+    }
+
+    public int getCapacity() {
+        return capacity;
+    }
+
+    public int getNumNodes() {
+        return numNodes;
+    }
+
+    public int getNumLevels() {
+        return numLevels;
+    }
+
+    public int getNumNodesAccessed() {
+        return numNodesAccessed;
     }
 
     /**
@@ -231,11 +256,165 @@ public class BPTree {
         return newPair;
     }
 
-    public void printExperiment2() {
-        logger.info("Capacity n: " + capacity);
-        logger.info("Number of nodes: " + numNodes);
-        logger.info("Number of levels: " + numLevels);
-        logger.info(getRootContent());
+    /**
+     * traverses to leafNode and gets all recordBlocks accessed between minKey and maxKey
+     * @param minKey, lowest key searching
+     * @param maxKey, highest key searching
+     * @return, list of recordBlocks accessed
+     */
+    public ArrayList<RecordBlock> searchNodes(int minKey, int maxKey) {
+        ArrayList<RecordBlock> accessedRecords = new ArrayList<>();
+
+        if (root != null) {
+             LeafNode leafNode = findLeafNode(root, minKey);
+             int i = 0;
+             int currKey = leafNode.getElements().get(0);
+
+             while (currKey <= maxKey) {
+                 if (currKey >= minKey) {
+                     for (RecordBlock rb : leafNode.getRecordBlocks().get(i)) {
+                         accessedRecords.add(rb);
+                     }
+                 }
+
+                 // continue in same node
+                 if (i < leafNode.getElements().size() - 1) {
+                     i += 1;
+                 } else { // else, go to next node
+                     if (leafNode.getNextNode() == null) return accessedRecords;
+                     leafNode = (LeafNode) leafNode.getNextNode();
+                     i = 0;
+                     numNodesAccessed += 1;
+                 }
+                 currKey = leafNode.getElements().get(i);
+             }
+        }
+        return accessedRecords;
+    }
+
+    /**
+     * finds leafNode containing key and increments numNodesAccessed on the way there
+     * @param node, starting node
+     * @param key, key we are looking for
+     * @return, leafNode which contains key
+     */
+    private LeafNode findLeafNode(Node node, int key) {
+        numNodesAccessed = 0;
+        while (node instanceof NonLeafNode) {
+            numNodesAccessed += 1;
+            NonLeafNode currNode = (NonLeafNode) node;
+            Node nextNode = null;
+            int i;
+
+            for (i = 0; i < currNode.getElements().size(); i++) {
+                if (key < currNode.getElements().get(i)) {
+                    nextNode = currNode.getChildren().get(i);
+                    break;
+                }
+            }
+            if (nextNode == null) {
+                nextNode = currNode.getChildren().get(i);
+            }
+            node = nextNode;
+        }
+        numNodesAccessed += 1;
+        return (LeafNode) node;
+    }
+
+    public void deleteKey(int key) {
+        LeafNode node = findLeafNode(root, key);
+        int i;
+        for (i = 0; i < node.getElements().size(); i++) {
+            if (key == node.getElements().get(i)) {
+                node.getElements().remove(i);
+                node.getRecordBlocks().remove(i);
+                break;
+            }
+        }
+
+        // if still enough keys, only update if deleted index == 0, no recursive delete
+        if (node.getElements().size() >= minLeafKeys) {
+            if (i == 0) {
+                int newKey = node.getElements().get(0);
+                updateParent(key, newKey);
+            }
+        } else { // else, check if can borrow, if not join and recursively delete
+            LeafNode prev = (LeafNode) node.getPrevNode();
+            LeafNode next = (LeafNode) node.getNextNode();
+            if (prev == null && next == null) return; // no neighbours
+            if (prev != null) {
+                // try to borrow from left neighbour
+                if (prev.getElements().size() > minLeafKeys) {
+                    int prevNumElements = prev.getElements().size();
+                    int borrowedKey = prev.getElements().get(prevNumElements - 1);
+                    ArrayList<RecordBlock> borrowedRecord = prev.getRecordBlocks().remove(prevNumElements - 1);
+                    node.getElements().add(0, borrowedKey);
+                    node.getRecordBlocks().add(0, borrowedRecord);
+                    updateParent(key, borrowedKey);
+                } else { // join and recursively delete
+
+                }
+            }
+            else if (next != null) {
+                // try to borrow from right neighbour
+                if (next.getElements().size() > minLeafKeys) {
+                    int borrowedKey = next.getElements().remove(0);
+                    ArrayList<RecordBlock> borrowedRecord = next.getRecordBlocks().remove(0);
+                    node.getElements().add(borrowedKey);
+                    node.getRecordBlocks().add(borrowedRecord);
+                    updateParent(key, borrowedKey);
+                } else { // join and recursively delete
+
+                }
+            }
+        }
+    }
+
+    /**
+     * updates parent in top down fashion starting from root
+     * @param oldKey, old key to remove
+     * @param newKey, new key to insert
+     */
+    public void updateParent(int oldKey, int newKey) {
+        Node node = root;
+
+        int i;
+        int childIdx = -1;
+
+        while (node instanceof NonLeafNode) {
+            NonLeafNode curr = (NonLeafNode) node;
+            for (i = 0; i < node.getElements().size(); i++) {
+                int element = node.getElements().get(i);
+                if (oldKey == element) {
+                    childIdx = i;
+                    node.getElements().remove(i);
+                    node.getElements().add(i, newKey);
+                }
+                else if (oldKey < element) childIdx = i;
+            }
+
+            // if equal or larger to key in node, use last idx
+            if (childIdx == -1) childIdx = i;
+            node = curr.getChildren().get(childIdx);
+        }
         return;
+    }
+
+    private void recursiveDelete() {
+        ;
+    }
+
+    /**
+     * calculates the average of average ratings for all records returned within a range
+     * @param accessedRecords, records accessed within a range of keys
+     * @return, average of average ratings
+     */
+    public float getAvgOfAvgRatings(ArrayList<RecordBlock> accessedRecords) {
+        if (accessedRecords.size() == 0) return 0;
+        float total = 0;
+        for (RecordBlock rb : accessedRecords) {
+            total += rb.getRecord().getAvgRating();
+        }
+        return (total / accessedRecords.size());
     }
 }

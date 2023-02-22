@@ -3,6 +3,7 @@ package main;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.logging.Logger;
 import java.util.logging.FileHandler;
@@ -13,10 +14,11 @@ import memorypool.RecordBlock;
 import bptree.BPTree;
 
 public class Main {
+
+    public static Logger logger = Logger.getLogger(Main.class.getName());
     public static void main(String[] args) {
         // we assume node size is same as block size
         final int BLOCKSIZE = 200;
-        Logger logger = Logger.getLogger(Main.class.getName());
         FileHandler fh;
         String localDir = System.getProperty("user.dir");
         try {
@@ -77,18 +79,24 @@ public class Main {
                 int choice = sc2.nextInt();
                 switch (choice) {
                     case 1:
-                        logger.info("\nStarting experiment 1...");
+                        logger.info("Starting experiment 1...");
                         db.printStats();
                         break;
                     case 2:
                         logger.info("Starting experiment 2...");
-                        tree.printExperiment2();
+                        printExperiment2(tree);
                         break;
                     case 3:
+                        logger.info("Starting experiment 3...");
+                        printRetrievalExperiment(tree, db, 500, 500);
                         break;
                     case 4:
+                        logger.info("Starting experiment 4...");
+                        printRetrievalExperiment(tree, db, 30000, 40000);
                         break;
                     case 5:
+                        logger.info("Starting experiment 5...");
+                        printExperiment5(tree, db, 1000);
                         break;
                     case 6:
                         logger.info("Quitting...");
@@ -104,7 +112,44 @@ public class Main {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
 
+    public static void printExperiment2(BPTree tree) {
+        logger.info("Capacity n: " + tree.getCapacity());
+        logger.info("Number of nodes: " + tree.getNumNodes());
+        logger.info("Number of levels: " + tree.getNumLevels());
+        logger.info(tree.getRootContent());
+        return;
+    }
 
+    public static void printRetrievalExperiment(BPTree tree, MemoryPool db, int minKey, int maxKey) {
+        long start1 = System.nanoTime();
+        ArrayList<RecordBlock> accessedRecords = tree.searchNodes(minKey, maxKey);
+        long end1 = System.nanoTime();
+        logger.info("Number of index nodes accessed (bptree): " + tree.getNumNodesAccessed());
+        logger.info("Number of data blocks accessed (bptree): " + accessedRecords.size());
+        logger.info("Average of average ratings (bptree): " + String.format("%.5f", tree.getAvgOfAvgRatings(accessedRecords)));
+        logger.info("Time taken (bptree): " + (end1 - start1));
+        long start2 = System.nanoTime();
+        ArrayList<Record> records = db.searchBlocks(minKey, maxKey);
+        long end2 = System.nanoTime();
+        logger.info("Number of data blocks accessed (brute force): " + db.getNumBlocksAccessed());
+        logger.info("Average of average ratings (brute force): " + String.format("%.5f", db.getAvgOfAvgRatings(records)));
+        logger.info("Time taken (brute force): " + (end2 - start2));
+    }
+
+    public static void printExperiment5(BPTree tree, MemoryPool db, int key) {
+        long start1 = System.nanoTime();
+        tree.deleteKey(key);
+        long end1 = System.nanoTime();
+        logger.info("Number of nodes (bptree): " + tree.getNumNodes());
+        logger.info("Number of levels (bptree): " + tree.getNumLevels());
+        logger.info("Content of root node (bptree): " + tree.getRootContent());
+        logger.info("Time taken (bptree): " + (end1 - start1));
+        long start2 = System.nanoTime();
+        db.deleteKey(key);
+        long end2 = System.nanoTime();
+        logger.info("Number of data blocks accessed (brute force): " + db.getNumBlocksAccessed());
+        logger.info("Time taken (brute force): " + (end2 - start2));
     }
 }

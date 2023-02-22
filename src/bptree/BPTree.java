@@ -6,12 +6,13 @@ import memorypool.RecordBlock;
 import java.sql.Array;
 import java.util.logging.Logger;
 import java.util.ArrayList;
+
 public class BPTree {
     private Node root;
     private int capacity;
     private int numNodes;
     private int numLevels;
-    private int numAccessedNodes;
+    private int numNodesAccessed;
     static Logger logger = Logger.getLogger(Main.class.getName());
 
     public BPTree(int capacity) {
@@ -19,7 +20,23 @@ public class BPTree {
         this.capacity = capacity;
         this.numNodes = 0;
         this.numLevels = 0;
-        this.numAccessedNodes = 0;
+        this.numNodesAccessed = 0;
+    }
+
+    public int getCapacity() {
+        return capacity;
+    }
+
+    public int getNumNodes() {
+        return numNodes;
+    }
+
+    public int getNumLevels() {
+        return numLevels;
+    }
+
+    public int getNumNodesAccessed() {
+        return numNodesAccessed;
     }
 
     /**
@@ -231,11 +248,82 @@ public class BPTree {
         return newPair;
     }
 
-    public void printExperiment2() {
-        logger.info("Capacity n: " + capacity);
-        logger.info("Number of nodes: " + numNodes);
-        logger.info("Number of levels: " + numLevels);
-        logger.info(getRootContent());
-        return;
+    /**
+     * traverses to leafNode and gets all recordBlocks accessed between minKey and maxKey
+     * @param minKey, lowest key searching
+     * @param maxKey, highest key searching
+     * @return, list of recordBlocks accessed
+     */
+    public ArrayList<RecordBlock> searchNodes(int minKey, int maxKey) {
+        ArrayList<RecordBlock> accessedRecords = new ArrayList<>();
+
+        if (root != null) {
+             LeafNode leafNode = findLeafNode(root, minKey);
+             int i = 0;
+             int currKey = leafNode.getElements().get(0);
+
+             while (currKey <= maxKey) {
+                 if (currKey >= minKey) {
+                     for (RecordBlock rb : leafNode.getRecordBlocks().get(i)) {
+                         accessedRecords.add(rb);
+                     }
+                 }
+
+                 // continue in same node
+                 if (i < leafNode.getElements().size() - 1) {
+                     i += 1;
+                 } else { // else, go to next node
+                     if (leafNode.getNextNode() == null) return accessedRecords;
+                     leafNode = (LeafNode) leafNode.getNextNode();
+                     i = 0;
+                     numNodesAccessed += 1;
+                 }
+                 currKey = leafNode.getElements().get(i);
+             }
+        }
+        return accessedRecords;
+    }
+
+    /**
+     * finds leafNode containing key and increments numNodesAccessed on the way there
+     * @param node, starting node
+     * @param key, key we are looking for
+     * @return, leafNode which contains key
+     */
+    private LeafNode findLeafNode(Node node, int key) {
+        numNodesAccessed = 0;
+        while (node instanceof NonLeafNode) {
+            numNodesAccessed += 1;
+            NonLeafNode currNode = (NonLeafNode) node;
+            Node nextNode = null;
+            int i;
+
+            for (i = 0; i < currNode.getElements().size(); i++) {
+                if (key < currNode.getElements().get(i)) {
+                    nextNode = currNode.getChildren().get(i);
+                    break;
+                }
+            }
+            if (nextNode == null) {
+                nextNode = currNode.getChildren().get(i);
+            }
+            node = nextNode;
+        }
+        numNodesAccessed += 1;
+        return (LeafNode) node;
+    }
+
+    /**
+     * calculates the average of average ratings for all records returned within a range
+     * @param accessedRecords, records accessed within a range of keys
+     * @return, average of average ratings
+     */
+    public double getAvgOfAvgRatings(ArrayList<RecordBlock> accessedRecords) {
+        if (accessedRecords.size() == 0) return 0;
+        int total = 0;
+        for (RecordBlock rb : accessedRecords) {
+            total += rb.getRecord().getAvgRating();
+        }
+        return (double) (total / accessedRecords.size());
     }
 }

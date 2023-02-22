@@ -23,14 +23,15 @@ public class MemoryPool {
     private int deletedRecords = 0;
 
     // Number of records per block
-    public int recordsPerBlk;
+    private int recordsPerBlk;
     // Total number of records in the DB
-    public int totalNumRecords = 0;
+    private int totalNumRecords;
 
     // A list containing all the allocated blocks
     private ArrayList<Block> blkList;
     // Current block that is being filled. Once this block is filled, it will pushed into the blkLis and will be reset
     private Block blk;
+    private int numBlocksAccessed;
 
     static Logger logger = Logger.getLogger(Main.class.getName());
 
@@ -48,6 +49,12 @@ public class MemoryPool {
         this.recordsPerBlk = (int) Math.floor(blkSize/(4 + 4 + 9));
         this.blk = new Block();
         this.blkList = new ArrayList<Block>();
+        this.totalNumRecords = 0;
+        this.numBlocksAccessed = 0;
+    }
+
+    public int getNumBlocksAccessed() {
+        return numBlocksAccessed;
     }
 
     /**
@@ -108,6 +115,44 @@ public class MemoryPool {
         return true;
     }
 
+    /**
+     * to brute force the database and get records within a range
+     * @param minKey, lowest key searching
+     * @param maxKey, highest key searching
+     * @return, list of records that satisfy range
+     */
+    public ArrayList<Record> searchBlocks(int minKey, int maxKey) {
+        numBlocksAccessed = 0;
+        ArrayList<Record> records = new ArrayList<>();
+        for (Block b : blkList) {
+            numBlocksAccessed += 1;
+            for (Record r : b.getRecords()) {
+                int numVotes = r.getNumVotes();
+                if (numVotes >= minKey && numVotes <= maxKey) {
+                    records.add(r);
+                }
+            }
+        }
+        return records;
+    }
+
+    /**
+     * to find average of average ratings for records within range
+     * @param records, the records within a range of keys
+     * @return, the average of average ratings
+     */
+    public double getAvgOfAvgRatings(ArrayList<Record> records) {
+        if (records.size() == 0) return 0;
+        int total = 0;
+        for (Record r : records) {
+            total += r.getAvgRating();
+        }
+        return (double) (total / records.size());
+    }
+
+    /**
+     * prints some statistics on the database
+     */
     public void printStats() {
         int currBlkSize = blk.getRecords().size();
         if (currBlkSize > 0) {

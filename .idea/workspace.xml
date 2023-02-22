@@ -2,13 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="1753616b-8cbb-4ff4-afd1-4ed6645d0c3a" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/bptree/BPTree.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/bptree/KeyNodePair.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/bptree/LeafNode.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/bptree/Node.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/bptree/NonLeafNode.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/memorypool/RecordBlock.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/output/output.log" beforeDir="false" afterPath="$PROJECT_DIR$/output/output.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/bptree/BPTree.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/bptree/BPTree.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/Main.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/memorypool/MemoryPool.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/memorypool/MemoryPool.java" afterDir="false" />
     </list>

@@ -98,23 +98,6 @@ public class MemoryPool {
         return this.blk;
     }
 
-    public boolean deleteRecord(Record rec) {
-        if (totalNumRecords <= 0) {
-            System.out.println("DATABASE IS EMPTY");
-            return false;
-        }
-
-        totalNumRecords--;
-        deletedRecords++;
-
-        if (deletedRecords == recordsPerBlk) {
-            numAllocatedBlk--;
-            numRemainingBlk++;
-            deletedRecords = 0;
-        }
-        return true;
-    }
-
     /**
      * to brute force the database and get records within a range
      * @param minKey, lowest key searching
@@ -141,13 +124,25 @@ public class MemoryPool {
      * @param records, the records within a range of keys
      * @return, the average of average ratings
      */
-    public double getAvgOfAvgRatings(ArrayList<Record> records) {
+    public float getAvgOfAvgRatings(ArrayList<Record> records) {
         if (records.size() == 0) return 0;
-        int total = 0;
+        float total = 0;
         for (Record r : records) {
             total += r.getAvgRating();
         }
-        return (double) (total / records.size());
+        return (total / records.size());
+    }
+
+    public void deleteKey(int key) {
+        numBlocksAccessed = 0;
+        for (int i = blkList.size() - 1; i > -1; i--) {
+            numBlocksAccessed += 1;
+            for (int j = blkList.get(i).getRecords().size() - 1; j > -1; j--) {
+                if (blkList.get(i).getRecords().get(j).getNumVotes() == key) {
+                    blkList.get(i).getRecords().remove(j);
+                }
+            }
+        }
     }
 
     /**

@@ -91,9 +91,12 @@ public class Main {
                         printRetrievalExperiment(tree, db, 500, 500);
                         break;
                     case 4:
+                        logger.info("Starting experiment 4...");
                         printRetrievalExperiment(tree, db, 30000, 40000);
                         break;
                     case 5:
+                        logger.info("Starting experiment 5...");
+                        printExperiment5(tree, db, 1000);
                         break;
                     case 6:
                         logger.info("Quitting...");
@@ -120,18 +123,33 @@ public class Main {
     }
 
     public static void printRetrievalExperiment(BPTree tree, MemoryPool db, int minKey, int maxKey) {
-        long start1 = System.currentTimeMillis();
+        long start1 = System.nanoTime();
         ArrayList<RecordBlock> accessedRecords = tree.searchNodes(minKey, maxKey);
-        long end1 = System.currentTimeMillis();
+        long end1 = System.nanoTime();
         logger.info("Number of index nodes accessed (bptree): " + tree.getNumNodesAccessed());
         logger.info("Number of data blocks accessed (bptree): " + accessedRecords.size());
-        logger.info("Average of average ratings (bptree): " + String.format("%.2f", tree.getAvgOfAvgRatings(accessedRecords)));
+        logger.info("Average of average ratings (bptree): " + String.format("%.5f", tree.getAvgOfAvgRatings(accessedRecords)));
         logger.info("Time taken (bptree): " + (end1 - start1));
-        long start2 = System.currentTimeMillis();
+        long start2 = System.nanoTime();
         ArrayList<Record> records = db.searchBlocks(minKey, maxKey);
-        long end2 = System.currentTimeMillis();
+        long end2 = System.nanoTime();
         logger.info("Number of data blocks accessed (brute force): " + db.getNumBlocksAccessed());
-        logger.info("Average of average ratings (brute force): " + String.format("%.2f", db.getAvgOfAvgRatings(records)));
+        logger.info("Average of average ratings (brute force): " + String.format("%.5f", db.getAvgOfAvgRatings(records)));
+        logger.info("Time taken (brute force): " + (end2 - start2));
+    }
+
+    public static void printExperiment5(BPTree tree, MemoryPool db, int key) {
+        long start1 = System.nanoTime();
+        tree.deleteKey(key);
+        long end1 = System.nanoTime();
+        logger.info("Number of nodes (bptree): " + tree.getNumNodes());
+        logger.info("Number of levels (bptree): " + tree.getNumLevels());
+        logger.info("Content of root node (bptree): " + tree.getRootContent());
+        logger.info("Time taken (bptree): " + (end1 - start1));
+        long start2 = System.nanoTime();
+        db.deleteKey(key);
+        long end2 = System.nanoTime();
+        logger.info("Number of data blocks accessed (brute force): " + db.getNumBlocksAccessed());
         logger.info("Time taken (brute force): " + (end2 - start2));
     }
 }

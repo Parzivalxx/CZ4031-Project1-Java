@@ -43,7 +43,7 @@ public class MemoryPool {
     public MemoryPool(int poolSize, int blkSize) {
         this.poolSize = poolSize;
         this.blkSize = blkSize;
-        this.numAllocatedBlk = 0;
+        this.numAllocatedBlk = 1;
         this.numRemainingBlk = (int) Math.floor(poolSize/blkSize);
         this.recordSize = 4 + 4 + 9;
         this.recordsPerBlk = (int) Math.floor(blkSize/(4 + 4 + 9));
@@ -149,12 +149,6 @@ public class MemoryPool {
      * prints some statistics on the database
      */
     public void printStats() {
-        int currBlkSize = blk.getRecords().size();
-        if (currBlkSize > 0) {
-            totalNumRecords += currBlkSize;
-            numAllocatedBlk++;
-            numRemainingBlk--;
-        }
         logger.info("Number of records: " + totalNumRecords);
         logger.info("Size of a record: " + recordSize);
         logger.info("Number of records per block: " + recordsPerBlk);

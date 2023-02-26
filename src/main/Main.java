@@ -5,6 +5,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Handler;
 import java.util.logging.Logger;
 import java.util.logging.FileHandler;
 import java.util.logging.SimpleFormatter;
@@ -41,9 +43,10 @@ public class Main {
         }
 
         MemoryPool db = new MemoryPool(500000000, BLOCKSIZE);
-        BPTree tree = new BPTree(200 / 8);
+        BPTree tree = new BPTree(3);
 
-        File inputFile = new File(localDir + "/data/data.tsv");
+//        File inputFile = new File(localDir + "/data/data.tsv");
+        File inputFile = new File(localDir + "/data/data_test.tsv");
         try {
             Scanner sc = new Scanner(inputFile);
             sc.nextLine();
@@ -73,7 +76,8 @@ public class Main {
                 System.out.println("3: Experiment 3");
                 System.out.println("4: Experiment 4");
                 System.out.println("5: Experiment 5");
-                System.out.println("6: Quit");
+                System.out.println("6: Print tree contents");
+                System.out.println("7: Quit");
 
                 Scanner sc2 = new Scanner(System.in);
                 int choice = sc2.nextInt();
@@ -96,9 +100,15 @@ public class Main {
                         break;
                     case 5:
                         logger.info("Starting experiment 5...");
-                        printExperiment5(tree, db, 1000);
+                        System.out.println("Enter key to delete: ");
+                        int numToDelete = sc2.nextInt();
+                        printExperiment5(tree, db, numToDelete);
                         break;
                     case 6:
+                        logger.info("Printing tree contents...");
+                        tree.printTree();
+                        break;
+                    case 7:
                         logger.info("Quitting...");
                         exit = true;
                         sc2.close();
@@ -111,6 +121,10 @@ public class Main {
             System.err.println("File not found: " + inputFile.toString());
         } catch (Exception e) {
             e.printStackTrace();
+        }
+        finally {
+            for (Handler h : logger.getHandlers())
+                h.close();
         }
     }
 
@@ -140,7 +154,7 @@ public class Main {
 
     public static void printExperiment5(BPTree tree, MemoryPool db, int key) {
         long start1 = System.nanoTime();
-        tree.deleteKey(key);
+        tree.findAndDeleteKey(key);
         long end1 = System.nanoTime();
         logger.info("Number of nodes (bptree): " + tree.getNumNodes());
         logger.info("Number of levels (bptree): " + tree.getNumLevels());

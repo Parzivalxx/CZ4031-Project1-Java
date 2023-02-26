@@ -6,6 +6,8 @@ import memorypool.RecordBlock;
 import java.sql.Array;
 import java.util.logging.Logger;
 import java.util.ArrayList;
+import java.util.Queue;
+import java.util.ArrayDeque;
 
 public class BPTree {
     private Node root;
@@ -252,6 +254,13 @@ public class BPTree {
         newNonLeafNode.setChildren(secondChildren);
 
         newNonLeafNode.setParent(node.getParent());
+        for (Node child : newNonLeafNode.getChildren())
+            child.setParent(newNonLeafNode);
+        if (node.getNextNode() != null)
+            node.getNextNode().setPrevNode(newNonLeafNode);
+        newNonLeafNode.setPrevNode(node);
+        newNonLeafNode.setNextNode(node.getNextNode());
+        node.setNextNode(newNonLeafNode);
 
         return newPair;
     }
@@ -321,38 +330,44 @@ public class BPTree {
         return (LeafNode) node;
     }
 
-    public void deleteKey(int key) {
+    public void findAndDeleteKey(int key) {
         LeafNode node = findLeafNode(root, key);
+        deleteInLeaf(node, key);
+        return;
+    }
+
+    private void deleteInLeaf(Node node, int key) {
         int i;
-        for (i = 0; i < node.getElements().size(); i++) {
-            if (key == node.getElements().get(i)) {
-                node.getElements().remove(i);
-                node.getRecordBlocks().remove(i);
+        LeafNode currNode = (LeafNode) node;
+        int prevFirst = currNode.getElements().get(0);
+        for (i = 0; i < currNode.getElements().size(); i++) {
+            if (key == currNode.getElements().get(i)) {
+                currNode.getElements().remove(i);
+                currNode.getRecordBlocks().remove(i);
                 break;
             }
         }
-
         // if still enough keys, only update if deleted index == 0, no recursive delete
-        if (node.getElements().size() >= minLeafKeys) {
+        if (currNode.getElements().size() >= minLeafKeys) {
             if (i == 0) {
-                int newKey = node.getElements().get(0);
+                int newKey = currNode.getElements().get(0);
                 updateParent(key, newKey);
             }
         } else { // else, check if can borrow, if not join and recursively delete
-            LeafNode prev = (LeafNode) node.getPrevNode();
-            LeafNode next = (LeafNode) node.getNextNode();
+            LeafNode prev = (LeafNode) currNode.getPrevNode();
+            LeafNode next = (LeafNode) currNode.getNextNode();
             if (prev == null && next == null) return; // no neighbours
+            boolean borrowed = false;
             if (prev != null) {
                 // try to borrow from left neighbour
                 if (prev.getElements().size() > minLeafKeys) {
                     int prevNumElements = prev.getElements().size();
-                    int borrowedKey = prev.getElements().get(prevNumElements - 1);
+                    int borrowedKey = prev.getElements().remove(prevNumElements - 1);
                     ArrayList<RecordBlock> borrowedRecord = prev.getRecordBlocks().remove(prevNumElements - 1);
-                    node.getElements().add(0, borrowedKey);
-                    node.getRecordBlocks().add(0, borrowedRecord);
-                    updateParent(key, borrowedKey);
-                } else { // join and recursively delete
-
+                    currNode.getElements().add(0, borrowedKey);
+                    currNode.getRecordBlocks().add(0, borrowedRecord);
+                    updateParent(prevFirst, borrowedKey);
+                    borrowed = true;
                 }
             }
             else if (next != null) {
@@ -360,15 +375,192 @@ public class BPTree {
                 if (next.getElements().size() > minLeafKeys) {
                     int borrowedKey = next.getElements().remove(0);
                     ArrayList<RecordBlock> borrowedRecord = next.getRecordBlocks().remove(0);
-                    node.getElements().add(borrowedKey);
-                    node.getRecordBlocks().add(borrowedRecord);
-                    updateParent(key, borrowedKey);
-                } else { // join and recursively delete
-
+                    currNode.getElements().add(borrowedKey);
+                    currNode.getRecordBlocks().add(borrowedRecord);
+                    updateParent(borrowedKey, next.getElements().get(0));
+                    borrowed = true;
+                }
+            }
+            if (!borrowed) { // join and recursively delete
+                if (prev != null) {
+                    ArrayList<Integer> currElements = currNode.getElements();
+                    ArrayList<ArrayList<RecordBlock>> currRecords = currNode.getRecordBlocks();
+                    for (int j = 0; j < currElements.size(); j++) {
+                        prev.getElements().add(currElements.get(j));
+                        prev.getRecordBlocks().add(currRecords.get(j));
+                    }
+                    prev.setNextNode(currNode.getNextNode());
+                    if (currNode.getNextNode() != null)
+                        currNode.getNextNode().setPrevNode(prev);
+                    // due to time constraints, we will just assign the node to the prev node of parent if parent is going to be deleted
+                    if (!(currNode.getParent().equals(root)) && (currNode.getParent().getElements().size() == 1)) {
+                        if (currNode.getParent().getChildren().contains(prev)) {
+                            NonLeafNode newParent = (NonLeafNode) currNode.getParent().getPrevNode();
+                            newParent.getElements().add(prev.getElements().get(0));
+                            newParent.getChildren().add(prev);
+                            prev.setParent(newParent);
+                            if (newParent.getElements().size() > capacity) {
+                                KeyNodePair newPair = createNonLeafNode(newParent);
+                            }
+                        }
+                    }
+                    deleteFromParent(currNode, prevFirst);
+                }
+                else if (next != null) { // join and recursively delete
+                    LeafNode nextNode = (LeafNode) currNode.getNextNode();
+                    ArrayList<Integer> nextElements = nextNode.getElements();
+                    ArrayList<ArrayList<RecordBlock>> nextRecords = nextNode.getRecordBlocks();
+                    for (int j = 0; j < nextElements.size(); j++) {
+                        currNode.getElements().add(nextElements.get(j));
+                        currNode.getRecordBlocks().add(nextRecords.get(j));
+                    }
+                    currNode.setNextNode(nextNode.getNextNode());
+                    if (nextNode.getNextNode() != null)
+                        nextNode.getNextNode().setPrevNode(currNode);
+                    if (!(currNode.getParent().equals(root)) && (currNode.getParent().getElements().size() == 1)) {
+                        NonLeafNode newParent = (NonLeafNode) currNode.getParent().getNextNode();
+                        int lowest = getSmallestKeyFromChildren(newParent);
+                        newParent.getElements().add(0, lowest);
+                        newParent.getChildren().add(0, next);
+                        if (newParent.getElements().size() > capacity) {
+                            KeyNodePair newPair = createNonLeafNode(newParent);
+                        }
+                    }
+                    key = nextNode.getElements().get(0);
+                    deleteFromParent(nextNode, key);
                 }
             }
         }
     }
+
+
+    private void mergeOrBorrowNonLeaf(NonLeafNode node) {
+        System.out.println("HERE4");
+        NonLeafNode currNode = (NonLeafNode) node;
+        NonLeafNode prev = (NonLeafNode) currNode.getPrevNode();
+        NonLeafNode next = (NonLeafNode) currNode.getNextNode();
+        if (prev == null && next == null) return; // no neighbours
+        boolean merged = false;
+        // try merge first
+        if (prev != null && (prev.getElements().size() + node.getChildren().size()) <= capacity) {
+            System.out.println("HERE7");
+            ArrayList<Integer> currElements = currNode.getElements();
+            ArrayList<Node> currChildren = currNode.getChildren();
+            for (int j = 0; j < currElements.size(); j++) {
+                prev.getElements().add(currElements.get(j));
+                prev.getChildren().add(currChildren.get(j));
+            }
+            prev.getChildren().add(currChildren.get(currChildren.size() - 1));
+            prev.setNextNode(currNode.getNextNode());
+            if (currNode.getNextNode() != null)
+                currNode.getNextNode().setPrevNode(prev);
+            int key = getSmallestKeyFromChildren(currNode);
+            deleteFromParent(currNode, key);
+            merged = true;
+        }
+        else if (next != null && (next.getElements().size() + node.getChildren().size()) <= capacity) {
+            System.out.println("HERE8");
+            NonLeafNode nextNode = (NonLeafNode) currNode.getNextNode();
+            ArrayList<Integer> nextElements = nextNode.getElements();
+            ArrayList<Node> nextChildren = nextNode.getChildren();
+            for (int j = 0; j < nextElements.size(); j++) {
+                currNode.getElements().add(nextElements.get(j));
+                currNode.getChildren().add(nextChildren.get(j));
+            }
+            currNode.getChildren().add(nextChildren.get(nextChildren.size() - 1));
+            currNode.setNextNode(nextNode.getNextNode());
+            if (nextNode.getNextNode() != null)
+                nextNode.getNextNode().setPrevNode(currNode);
+            int key = getSmallestKeyFromChildren(currNode);
+            deleteFromParent(currNode, key);
+            currNode.setParent(nextNode.getParent());
+            updateParent(getSmallestKeyFromChildren(nextNode), key);
+            merged = true;
+        }
+        if (!merged) {
+            int difference = minNonLeafKeys - currNode.getElements().size();
+            if (prev != null) {
+                System.out.println("HERE5");
+                int oldKey = currNode.getElements().get(0);
+                // just assuming prev has sufficient to lend currNode and maintain enough keys
+                int prevNumElements = prev.getElements().size();
+                currNode.getElements().add(0, getSmallestKeyFromChildren(currNode));
+                for (int i = 0; i < difference; i++) {
+                    currNode.getElements().add(0, prev.getElements().remove(prevNumElements - 1 - i));
+                    currNode.getChildren().add(0, prev.getChildren().remove(prevNumElements - i));
+                }
+                currNode.getElements().remove(0);
+                int newKey = currNode.getElements().get(0);
+                updateParent(oldKey, newKey);
+            }
+            else if (next != null) {
+                System.out.println("HERE6");
+                // try to borrow from right neighbour
+                int oldKey = next.getElements().get(0);
+                // just assuming prev has sufficient to lend currNode and maintain enough keys
+                int nextNumElements = next.getElements().size();
+                currNode.getElements().add(getSmallestKeyFromChildren(next));
+                currNode.getChildren().add(next.getChildren().get(0));
+                for (int i = 0; i < difference - 1; i++) {
+                    currNode.getElements().add(next.getElements().remove(i));
+                    currNode.getChildren().add(next.getChildren().remove(i));
+                }
+                next.getElements().remove(0);
+                int newKey = next.getElements().get(0);
+                updateParent(oldKey, newKey);
+            }
+        }
+    }
+
+    private void deleteFromParent(Node node, int key) {
+        NonLeafNode parentNode = (NonLeafNode) node.getParent();
+        System.out.println(key);
+        if (key < parentNode.getElements().get(0)) {
+            System.out.println("HERE");
+            if (parentNode.getElements().size() == 1) {
+                mergeOrBorrowNonLeaf(parentNode);
+                return;
+            }
+            int oldKey = parentNode.getElements().get(0);
+            parentNode.getElements().remove(0);
+            parentNode.getChildren().remove(0);
+            updateParent(oldKey, parentNode.getElements().get(0));
+        } else {
+            for (int i = 0; i < parentNode.getElements().size(); i++) {
+                if (key == parentNode.getElements().get(i)) {
+                    System.out.println("HERE3");
+                    parentNode.getElements().remove(i);
+                    parentNode.getChildren().remove(i + 1);
+                    break;
+                }
+            }
+        }
+        if (parentNode.equals(root)) {
+            if (parentNode.getElements().size() == 0) {
+                if (parentNode.getChildren().size() > 0) {
+                    root = parentNode.getChildren().get(0);
+                }
+            }
+            return;
+        }
+        if (parentNode.getElements().size() < minNonLeafKeys) {
+            key = getSmallestKeyFromChildren(parentNode);
+            mergeOrBorrowNonLeaf(parentNode);
+        }
+        return;
+    }
+
+    private int getSmallestKeyFromChildren(Node currNode) {
+        Node tempNode = currNode;
+        while (tempNode instanceof NonLeafNode) {
+            NonLeafNode tempNode2 = (NonLeafNode) tempNode;
+            Node nextNode = tempNode2.getChildren().get(0);
+            tempNode = nextNode;
+        }
+        int key = tempNode.getElements().get(0);
+        return key;
+    }
+
 
     /**
      * updates parent in top down fashion starting from root
@@ -400,10 +592,6 @@ public class BPTree {
         return;
     }
 
-    private void recursiveDelete() {
-        ;
-    }
-
     /**
      * calculates the average of average ratings for all records returned within a range
      * @param accessedRecords, records accessed within a range of keys
@@ -416,5 +604,49 @@ public class BPTree {
             total += rb.getRecord().getAvgRating();
         }
         return (total / accessedRecords.size());
+    }
+
+    public void printTree() {
+        ArrayList<Node> nodes = new ArrayList<>();
+        int numNodes = 1;
+        int count = 0;
+        Node cur;
+
+        nodes.add(root);
+
+        if (root == null) {
+            System.out.println("-----Tree is empty-----");
+            return;
+        }
+
+        System.out.println("-----Printing Tree-----");
+
+        while (nodes.isEmpty() == false) {
+            cur = nodes.get(0);
+
+            // System.out.printf("size of node: %d\n", cur.numElements());
+            for (int e : cur.getElements()) {
+                System.out.printf("%d ", e);
+
+            }
+
+            if (cur instanceof NonLeafNode) {
+                for (Node n : ((NonLeafNode)cur).getChildren()) {
+                    nodes.add(n);
+                }
+            }
+
+            count += 1;
+
+            if (count < numNodes) {
+                System.out.printf("| ");
+            } else {
+                System.out.printf("\n");
+                numNodes = nodes.size() - 1;
+                count = 0;
+            }
+
+            nodes.remove(0);
+        }
     }
 }

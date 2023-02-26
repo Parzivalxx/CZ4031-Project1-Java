@@ -435,7 +435,6 @@ public class BPTree {
 
 
     private void mergeOrBorrowNonLeaf(NonLeafNode node) {
-        System.out.println("HERE4");
         NonLeafNode currNode = (NonLeafNode) node;
         NonLeafNode prev = (NonLeafNode) currNode.getPrevNode();
         NonLeafNode next = (NonLeafNode) currNode.getNextNode();
@@ -443,7 +442,6 @@ public class BPTree {
         boolean merged = false;
         // try merge first
         if (prev != null && (prev.getElements().size() + node.getChildren().size()) <= capacity) {
-            System.out.println("HERE7");
             ArrayList<Integer> currElements = currNode.getElements();
             ArrayList<Node> currChildren = currNode.getChildren();
             for (int j = 0; j < currElements.size(); j++) {
@@ -459,7 +457,6 @@ public class BPTree {
             merged = true;
         }
         else if (next != null && (next.getElements().size() + node.getChildren().size()) <= capacity) {
-            System.out.println("HERE8");
             NonLeafNode nextNode = (NonLeafNode) currNode.getNextNode();
             ArrayList<Integer> nextElements = nextNode.getElements();
             ArrayList<Node> nextChildren = nextNode.getChildren();
@@ -480,7 +477,6 @@ public class BPTree {
         if (!merged) {
             int difference = minNonLeafKeys - currNode.getElements().size();
             if (prev != null) {
-                System.out.println("HERE5");
                 int oldKey = currNode.getElements().get(0);
                 // just assuming prev has sufficient to lend currNode and maintain enough keys
                 int prevNumElements = prev.getElements().size();
@@ -494,7 +490,6 @@ public class BPTree {
                 updateParent(oldKey, newKey);
             }
             else if (next != null) {
-                System.out.println("HERE6");
                 // try to borrow from right neighbour
                 int oldKey = next.getElements().get(0);
                 // just assuming prev has sufficient to lend currNode and maintain enough keys
@@ -514,11 +509,13 @@ public class BPTree {
 
     private void deleteFromParent(Node node, int key) {
         NonLeafNode parentNode = (NonLeafNode) node.getParent();
-        System.out.println(key);
         if (key < parentNode.getElements().get(0)) {
-            System.out.println("HERE");
             if (parentNode.getElements().size() == 1) {
-                mergeOrBorrowNonLeaf(parentNode);
+                if (parentNode.getChildren().get(0).getElements().contains(key)) {
+                    deleteFromParent(parentNode, key);
+                } else {
+                    mergeOrBorrowNonLeaf(parentNode);
+                }
                 return;
             }
             int oldKey = parentNode.getElements().get(0);
@@ -528,7 +525,6 @@ public class BPTree {
         } else {
             for (int i = 0; i < parentNode.getElements().size(); i++) {
                 if (key == parentNode.getElements().get(i)) {
-                    System.out.println("HERE3");
                     parentNode.getElements().remove(i);
                     parentNode.getChildren().remove(i + 1);
                     break;
@@ -544,8 +540,11 @@ public class BPTree {
             return;
         }
         if (parentNode.getElements().size() < minNonLeafKeys) {
-            key = getSmallestKeyFromChildren(parentNode);
-            mergeOrBorrowNonLeaf(parentNode);
+            if (parentNode.getElements().size() == 0) {
+                key = getSmallestKeyFromChildren(parentNode);
+                deleteFromParent(parentNode, key);
+            } else
+                mergeOrBorrowNonLeaf(parentNode);
         }
         return;
     }
@@ -615,18 +614,17 @@ public class BPTree {
         nodes.add(root);
 
         if (root == null) {
-            System.out.println("-----Tree is empty-----");
+            logger.info("-----Tree is empty-----");
             return;
         }
 
-        System.out.println("-----Printing Tree-----");
+        logger.info("-----Printing Tree-----");
+        String s = "\n";
 
         while (nodes.isEmpty() == false) {
             cur = nodes.get(0);
-
-            // System.out.printf("size of node: %d\n", cur.numElements());
             for (int e : cur.getElements()) {
-                System.out.printf("%d ", e);
+                s += e + " ";
 
             }
 
@@ -639,14 +637,15 @@ public class BPTree {
             count += 1;
 
             if (count < numNodes) {
-                System.out.printf("| ");
+                s += "| ";
             } else {
-                System.out.printf("\n");
+                s += "\n";
                 numNodes = nodes.size() - 1;
                 count = 0;
             }
 
             nodes.remove(0);
         }
+        logger.info(s);
     }
 }

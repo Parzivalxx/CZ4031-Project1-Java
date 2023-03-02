@@ -66,9 +66,10 @@ public class MemoryPool {
             System.out.println("MEMORY FULL");
             return false;
         }
-
-        blkList.add(blk);
+        if (blkList.size() == 0)
+            blkList.add(blk);
         blk = new Block();
+        blkList.add(blk);
         numAllocatedBlk++;
         numRemainingBlk--;
         return true;

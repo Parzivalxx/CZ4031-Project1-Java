@@ -43,10 +43,10 @@ public class Main {
         }
 
         MemoryPool db = new MemoryPool(500000000, BLOCKSIZE);
-        BPTree tree = new BPTree(3);
+        BPTree tree = new BPTree(25);
 
-//        File inputFile = new File(localDir + "/data/data.tsv");
-        File inputFile = new File(localDir + "/data/data_test.tsv");
+        File inputFile = new File(localDir + "/data/data.tsv");
+//        File inputFile = new File(localDir + "/data/data_test.tsv");
         try {
             Scanner sc = new Scanner(inputFile);
             sc.nextLine();
@@ -157,14 +157,14 @@ public class Main {
         long start1 = System.nanoTime();
         tree.findAndDeleteKey(key);
         long end1 = System.nanoTime();
-//        logger.info("Number of nodes (bptree): " + tree.getNumNodes());
-//        logger.info("Number of levels (bptree): " + tree.getNumLevels());
-//        logger.info("Content of root node (bptree): " + tree.getRootContent());
-//        logger.info("Time taken (bptree): " + (end1 - start1));
+        logger.info("Number of nodes (bptree): " + tree.getNumNodes());
+        logger.info("Number of levels (bptree): " + tree.getNumLevels());
+        logger.info("Content of root node (bptree): " + tree.getRootContent());
+        logger.info("Time taken (bptree): " + (end1 - start1));
         long start2 = System.nanoTime();
         db.deleteKey(key);
         long end2 = System.nanoTime();
-//        logger.info("Number of data blocks accessed (brute force): " + db.getNumBlocksAccessed());
-//        logger.info("Time taken (brute force): " + (end2 - start2));
+        logger.info("Number of data blocks accessed (brute force): " + db.getNumBlocksAccessed());
+        logger.info("Time taken (brute force): " + (end2 - start2));
     }
 }
